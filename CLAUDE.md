@@ -2,6 +2,20 @@
 
 Guía para Claude Code al trabajar en este repositorio. Léela antes de tocar código.
 
+## Cómo retomar (arranque rápido)
+
+La Fase 0 vive en la rama **`fase-0-core`** (aún no fusionada a `main`).
+
+```
+git checkout fase-0-core     # rama con todo el núcleo (core)
+npm install                  # instalar workspaces
+npm test                     # 67 tests deben pasar (verde)
+```
+
+Para saber "por dónde vamos": Fase 0 (núcleo CPP) **completa y testeada**; lo
+siguiente es la **Fase 1** (backend Fastify + app Expo/MapLibre). Ver *Estado
+actual* más abajo y [docs/plan-tecnico.md §9](docs/plan-tecnico.md).
+
 ## Qué es este proyecto
 
 App de **recorrido total de calles**: dada una zona que el usuario dibuja en un mapa,
