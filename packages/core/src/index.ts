@@ -32,6 +32,7 @@ export {
   polygonToPolyString,
   fetchOverpass,
   DEFAULT_OVERPASS_ENDPOINT,
+  DEFAULT_USER_AGENT,
 } from "./overpass.js";
 export type {
   GeoJsonPolygon,

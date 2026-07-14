@@ -4,6 +4,7 @@ import {
   polygonToPolyString,
   fetchOverpass,
   DEFAULT_OVERPASS_ENDPOINT,
+  DEFAULT_USER_AGENT,
   type GeoJsonPolygon,
   type FetchLike,
   type FetchResponseLike,
@@ -55,7 +56,7 @@ describe("buildOverpassQuery", () => {
 });
 
 describe("fetchOverpass (fetch inyectado)", () => {
-  it("hace POST al endpoint con la query y devuelve el JSON parseado", async () => {
+  it("hace POST form-encoded (data=) al endpoint y devuelve el JSON parseado", async () => {
     const canned: OverpassResponse = {
       elements: [
         { type: "node", id: 1, lat: 0, lon: 0 },
@@ -65,17 +66,36 @@ describe("fetchOverpass (fetch inyectado)", () => {
     };
     let seenUrl = "";
     let seenBody = "";
+    let seenContentType = "";
     const fetchFn: FetchLike = async (url, init) => {
       seenUrl = url;
       seenBody = init.body;
+      seenContentType = init.headers?.["Content-Type"] ?? "";
       expect(init.method).toBe("POST");
       return fakeResponse(canned);
     };
 
-    const result = await fetchOverpass("QUERY", { fetchFn });
+    // Query con caracteres especiales: debe viajar urlencoded en el campo data=.
+    const query = 'way["highway"];';
+    const result = await fetchOverpass(query, { fetchFn });
     expect(seenUrl).toBe(DEFAULT_OVERPASS_ENDPOINT);
-    expect(seenBody).toBe("QUERY");
+    expect(seenBody).toBe(`data=${encodeURIComponent(query)}`);
+    expect(seenContentType).toBe("application/x-www-form-urlencoded");
     expect(result.elements).toHaveLength(3);
+  });
+
+  it("envía User-Agent (la instancia pública responde 406 sin él)", async () => {
+    let seenUA: string | undefined;
+    const fetchFn: FetchLike = async (_url, init) => {
+      seenUA = init.headers?.["User-Agent"];
+      return fakeResponse({ elements: [] });
+    };
+
+    await fetchOverpass("Q", { fetchFn });
+    expect(seenUA).toBe(DEFAULT_USER_AGENT);
+
+    await fetchOverpass("Q", { fetchFn, userAgent: "mi-app/2.0" });
+    expect(seenUA).toBe("mi-app/2.0");
   });
 
   it("usa el endpoint personalizado si se pasa", async () => {

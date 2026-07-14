@@ -33,6 +33,13 @@ export interface QueryOptions {
 /** Instancia pública de Overpass por defecto. */
 export const DEFAULT_OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter";
 
+/**
+ * User-Agent por defecto. La política de OSM/Overpass exige identificar la
+ * aplicación: la instancia pública responde **406** a peticiones sin User-Agent
+ * (verificado contra overpass-api.de). Configurable vía `FetchOptions.userAgent`.
+ */
+export const DEFAULT_USER_AGENT = "app-navegacion/0.1 (street-coverage CPP app; dev)";
+
 /** Construye la query Overpass QL para un polígono. Pura y determinista. */
 export function buildOverpassQuery(polygon: GeoJsonPolygon, options: QueryOptions = {}): string {
   const timeout = options.timeoutSeconds ?? 60;
@@ -78,15 +85,27 @@ export interface FetchOptions {
   readonly fetchFn: FetchLike;
   /** Endpoint de Overpass. Default: instancia pública. */
   readonly endpoint?: string;
+  /** User-Agent identificando la app (política OSM). Default: DEFAULT_USER_AGENT. */
+  readonly userAgent?: string;
 }
 
-/** Ejecuta la query contra Overpass usando el `fetch` inyectado. */
+/**
+ * Ejecuta la query contra Overpass usando el `fetch` inyectado.
+ *
+ * Formato de la petición: el protocolo documentado de Overpass es un POST
+ * form-encoded con la query en el campo `data=`, y con `User-Agent` (la
+ * instancia pública responde 406 sin él). No cambies ninguna de las dos cosas
+ * sin probar contra el servidor real.
+ */
 export async function fetchOverpass(query: string, options: FetchOptions): Promise<OverpassResponse> {
   const endpoint = options.endpoint ?? DEFAULT_OVERPASS_ENDPOINT;
   const res = await options.fetchFn(endpoint, {
     method: "POST",
-    body: query,
-    headers: { "Content-Type": "text/plain" },
+    body: `data=${encodeURIComponent(query)}`,
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": options.userAgent ?? DEFAULT_USER_AGENT,
+    },
   });
   if (!res.ok) {
     const body = await safeText(res);
