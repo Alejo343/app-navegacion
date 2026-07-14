@@ -216,6 +216,20 @@ dirigido, respeta `oneway` y giros → CPP Dirigido) queda para fase posterior.
 5. **GPS en segundo plano en RN**: requiere *dev build* y permisos; consumo de
    batería a vigilar.
 6. **Precisión del map-matching** para marcar calles recorridas en zonas densas.
+7. **Repetición alta por muñones del borde** *(medido en Fase 1, 2026-07-14)*: las
+   calles que el polígono corta pero que siguen conectadas a la componente mayor
+   quedan como callejones sin salida artificiales → cada una añade un nodo impar →
+   el CPP repite mucho. Prueba real (Madrid centro, ~300×300 m, 126 calles):
+   **51,6% de repetición**, frente al ~12% del ejemplo del §5. No es un bug (es la
+   repetición mínima para ese grafo); es un efecto del recorte. Ideas para fases
+   posteriores, **a decidir con el usuario** (cambian qué significa "recorrer toda
+   la zona"):
+   - **Podar muñones del borde**: descartar aristas colgantes (grado 1) que nacen
+     del corte del polígono, quizá solo las más cortas que un umbral.
+   - **Mostrar el % de repetición estimado antes de empezar** y sugerir ajustar el
+     dibujo (p. ej. cerrar el polígono siguiendo calles completas).
+   - **Ruta abierta** (inicio ≠ fin, ya prevista como fase posterior): elimina
+     hasta un par de impares "gratis".
 
 ---
 
