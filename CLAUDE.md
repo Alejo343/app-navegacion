@@ -32,14 +32,22 @@ discrepan, gana el plan (o se actualiza el plan de forma explícita, no en silen
 
 ## Cómo trabajamos aquí (spec-driven + tests)
 
-No es "vibe coding". Para cada módulo del núcleo, en este orden:
+No es "vibe coding". Para cada módulo, en este orden:
 
 1. **Contrato primero**: definir entrada, salida e invariantes (tipos TS + comentario).
-2. **Test con solución conocida**: un grafo pequeño cuya ruta óptima se sepa a mano.
+2. **Test de solución conocida**: un caso pequeño cuya respuesta se sepa a mano.
 3. **Implementación**: hasta que el test pase.
+4. **Verificar antes de seguir**: `typecheck` estricto + toda la suite en verde.
 
-La spec y los tests son la verdad; el código es solo el *cómo*. El núcleo algorítmico
-se valida con **grafos pequeños de solución conocida** antes de escalar.
+La spec y los tests son la verdad; el código es solo el *cómo*.
+
+Principios que lo refuerzan:
+- **Oráculos para lo difícil**: si un algoritmo es difícil de verificar a ojo
+  (p. ej. Blossom), construir un solver de referencia (fuerza bruta) y validar
+  contra él en muchos casos aleatorios. La confianza viene de la comparación.
+- **Trocear**: avanzar en partes pequeñas y autocontenidas, no todo de golpe.
+- **Decisiones del usuario en las bifurcaciones** que cambian la calidad del
+  producto (no elegir por él; presentar trade-offs).
 
 ## Arquitectura y estructura (monorepo)
 
