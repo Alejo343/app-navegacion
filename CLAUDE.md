@@ -9,14 +9,16 @@ el backend Fastify ya existe (`packages/backend`).
 
 ```
 npm install                  # instalar workspaces
-npm test                     # 89 tests deben pasar (68 core + 9 backend + 12 mobile)
+npm test                     # 95 tests deben pasar (68 core + 9 backend + 18 mobile)
 npm run dev --workspace @app-navegacion/backend   # servidor en :3000 (tsx watch)
 ```
 
 Para saber "por dónde vamos": de la Fase 1 están hechos el **backend base**
-(`POST /routes/compute` + `GET /routes/:id`) y el **scaffold del móvil con la
-lógica de cliente testeada**; falta la **UI del mapa** (MapLibre + dev build,
-necesita decidir dispositivo). Ver *Estado actual* más abajo y
+(`POST /routes/compute` + `GET /routes/:id`) y el **móvil completo a nivel de
+código** (UI MapLibre: dibujo + ruta + stats, verificada con tests/typecheck/
+bundle Metro); **lo único pendiente de la Fase 1 es la prueba visual en el
+emulador/dispositivo** (el primer `expo run:android` quedó interrumpido). Ver
+*Estado actual* y *Entorno Android* más abajo y
 [docs/plan-tecnico.md §9](docs/plan-tecnico.md).
 
 ## Qué es este proyecto
@@ -91,10 +93,25 @@ de forma aislada. No metas `fetch` ni acceso a disco en `core`.
   tipados `ApiError`; los DTO duplican el formato de cable a propósito para
   que Metro no compile paquetes del monorepo) y `draw.ts` (borrador de
   polígono inmutable: añadir/deshacer vértices, cerrar anillo GeoJSON).
-- **Próximo paso: Fase 1 — móvil, parte 2 (UI del mapa)**: MapLibre
-  (`@maplibre/maplibre-react-native`), dibujo sobre el mapa, llamar a la API y
-  pintar ruta + stats. Requiere **dev build** (no funciona en Expo Go) →
-  preguntar al usuario si Android físico o emulador antes de configurarlo.
+- **Fase 1 — móvil, parte 2 (UI del mapa): CÓDIGO HECHO; prueba visual
+  pendiente.** `App.tsx` es la pantalla única de la Fase 1: mapa MapLibre
+  (`@maplibre/maplibre-react-native` v11, API nueva: `Map`/`GeoJSONSource`/
+  `Layer`; config plugin en `app.json`), dibujo de polígono tocando el mapa
+  (vértices + contorno + relleno), botones Deshacer/Limpiar/Calcular, llamada
+  al backend y ruta pintada en rojo con panel de stats (km, % repetición,
+  aviso de tramos descartados). `src/config.ts` centraliza `API_BASE_URL`
+  (`http://10.0.2.2:3000` = loopback del host desde el emulador; cambiar a la
+  IP local para dispositivo físico), estilo de mapa (OpenFreeMap liberty, sin
+  API key) y cámara inicial (Madrid). `src/lib/geojson.ts` (puro, testeado):
+  features del borrador/ruta + formato de stats. Verificado: 18 tests mobile,
+  typecheck estricto y bundle Metro (`npx expo export`). El aviso
+  INVALID_PLUGIN_IMPORT del IDE sobre el plugin de MapLibre es un falso
+  positivo de la extensión de VSCode (la CLI de Expo lo resuelve bien).
+  **Pendiente**: correr `npm run android` hasta el final (el primer build de
+  Gradle quedó interrumpido) y probar el flujo dibujar → calcular → ver ruta.
+- **Próximo paso**: prueba visual en emulador (cierra la Fase 1) y decidir
+  qué mitigación del riesgo §10.7 (muñones del borde) se ve en la app; luego
+  Fase 2 (GPS/navegación, `expo-location`).
 
 Módulos de `packages/core/src` (cada uno con su `.test.ts`):
 - `graph.ts` — multigrafo no dirigido (paralelas, bucles, grados).
@@ -147,8 +164,41 @@ npm test --workspace @app-navegacion/core        # tests solo del núcleo (Vites
 npm run test:watch --workspace @app-navegacion/core   # Vitest en modo watch
 npm run typecheck --workspace @app-navegacion/core    # tsc --noEmit (TS estricto)
 npm run typecheck --workspace @app-navegacion/backend # typecheck del backend
+npm run typecheck --workspace @app-navegacion/mobile  # typecheck del móvil
 npm run dev --workspace @app-navegacion/backend       # servidor Fastify :3000 (watch)
 ```
+
+## Entorno Android (emulador) — cómo se montó y cómo reproducirlo
+
+En la máquina original el SDK se instaló **sin abrir Android Studio**, por
+línea de comandos (cmdline-tools → `sdkmanager`). En una máquina nueva basta
+con: instalar Android Studio y su SDK (o repetir la vía cmdline), JDK 17+, y:
+
+```
+sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" \
+  "emulator" "system-images;android-36;google_apis;x86_64"
+avdmanager create avd -n appnav -k "system-images;android-36;google_apis;x86_64" -d pixel_7
+setx ANDROID_HOME "%LOCALAPPDATA%\Android\Sdk"    # solo lo ven terminales NUEVAS
+```
+
+Runbook de desarrollo (3 terminales):
+
+```
+1) "%LOCALAPPDATA%\Android\Sdk\emulator\emulator.exe" -avd appnav   # CMD
+   & "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd appnav  # PowerShell
+2) npm run dev --workspace @app-navegacion/backend
+3) cd packages/mobile && npm run android    # dev build; 1ª vez tarda (Gradle)
+```
+
+Gotchas ya sufridos (no retropezar):
+- El emulador debe estar **arrancado y con boot completo** antes de
+  `npm run android`, o Expo dice "No Android connected device found".
+- MapLibre **no funciona en Expo Go**: siempre dev build (`expo run:android`).
+- `android/` e `ios/` los genera `expo prebuild` y están **ignorados en git**
+  (generación nativa continua): no los edites a mano ni los commitees.
+- La app instalada ya: basta `npm start` en `packages/mobile` (Metro) en vez
+  de recompilar.
+- Aceleración: WHPX debe estar activo en Windows (`emulator -accel-check`).
 
 ## Convenciones
 
