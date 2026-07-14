@@ -9,13 +9,15 @@ el backend Fastify ya existe (`packages/backend`).
 
 ```
 npm install                  # instalar workspaces
-npm test                     # 77 tests deben pasar (68 core + 9 backend)
+npm test                     # 89 tests deben pasar (68 core + 9 backend + 12 mobile)
 npm run dev --workspace @app-navegacion/backend   # servidor en :3000 (tsx watch)
 ```
 
-Para saber "por dónde vamos": de la Fase 1 está hecho el **backend base**
-(`POST /routes/compute` + `GET /routes/:id`); **falta `packages/mobile`**
-(Expo + MapLibre). Ver *Estado actual* más abajo y [docs/plan-tecnico.md §9](docs/plan-tecnico.md).
+Para saber "por dónde vamos": de la Fase 1 están hechos el **backend base**
+(`POST /routes/compute` + `GET /routes/:id`) y el **scaffold del móvil con la
+lógica de cliente testeada**; falta la **UI del mapa** (MapLibre + dev build,
+necesita decidir dispositivo). Ver *Estado actual* más abajo y
+[docs/plan-tecnico.md §9](docs/plan-tecnico.md).
 
 ## Qué es este proyecto
 
@@ -81,8 +83,18 @@ de forma aislada. No metas `fetch` ni acceso a disco en `core`.
   sin probar contra el servidor real. Módulos: `service.ts` (orquestación + ensamblado de
   la polilínea orientada), `store.ts` (caché/almacén), `server.ts` (rutas +
   validación JSON-schema), `index.ts` (arranque con fetch real).
-- **Próximo paso: Fase 1 — `packages/mobile`** (Expo + MapLibre): dibujar el
-  polígono, llamar a `/routes/compute`, pintar ruta y estadísticas.
+- **Fase 1 — móvil, parte 1 (scaffold + lógica de cliente): HECHO.**
+  `packages/mobile` es una app Expo SDK 57 (template blank-typescript, TS
+  estricto) integrada en los workspaces; Metro compila (`npx expo export`).
+  Lógica pura en `src/lib` con 12 tests Vitest (sin nada nativo):
+  `api.ts` (cliente de `/routes/compute` con `fetch` inyectado, errores
+  tipados `ApiError`; los DTO duplican el formato de cable a propósito para
+  que Metro no compile paquetes del monorepo) y `draw.ts` (borrador de
+  polígono inmutable: añadir/deshacer vértices, cerrar anillo GeoJSON).
+- **Próximo paso: Fase 1 — móvil, parte 2 (UI del mapa)**: MapLibre
+  (`@maplibre/maplibre-react-native`), dibujo sobre el mapa, llamar a la API y
+  pintar ruta + stats. Requiere **dev build** (no funciona en Expo Go) →
+  preguntar al usuario si Android físico o emulador antes de configurarlo.
 
 Módulos de `packages/core/src` (cada uno con su `.test.ts`):
 - `graph.ts` — multigrafo no dirigido (paralelas, bucles, grados).
