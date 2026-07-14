@@ -4,10 +4,9 @@ Guía para Claude Code al trabajar en este repositorio. Léela antes de tocar c�
 
 ## Cómo retomar (arranque rápido)
 
-La Fase 0 vive en la rama **`fase-0-core`** (aún no fusionada a `main`).
+La Fase 0 ya está fusionada en **`main`**.
 
 ```
-git checkout fase-0-core     # rama con todo el núcleo (core)
 npm install                  # instalar workspaces
 npm test                     # 67 tests deben pasar (verde)
 ```
