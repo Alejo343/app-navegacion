@@ -146,6 +146,12 @@ muestra y navega.
     "repeatMeters": 1530,
     "repeatPercent": 12.3,
     "streetCount": 210
+  },
+  "dropped": { "nodes": [], "edges": [], "componentCount": 1 }, // componente mayor (§10.2)
+  "clip": {                      // mitigación §10.7 (decisión A, 2026-07-15)
+    "outsideEdges": 14,          // aristas con algún extremo fuera del polígono
+    "prunedEdges": 6,            // muñones del borde podados
+    "prunedMeters": 182
   }
 }
 ```
@@ -221,15 +227,25 @@ dirigido, respeta `oneway` y giros → CPP Dirigido) queda para fase posterior.
    quedan como callejones sin salida artificiales → cada una añade un nodo impar →
    el CPP repite mucho. Prueba real (Madrid centro, ~300×300 m, 126 calles):
    **51,6% de repetición**, frente al ~12% del ejemplo del §5. No es un bug (es la
-   repetición mínima para ese grafo); es un efecto del recorte. Ideas para fases
-   posteriores, **a decidir con el usuario** (cambian qué significa "recorrer toda
-   la zona"):
-   - **Podar muñones del borde**: descartar aristas colgantes (grado 1) que nacen
-     del corte del polígono, quizá solo las más cortas que un umbral.
-   - **Mostrar el % de repetición estimado antes de empezar** y sugerir ajustar el
-     dibujo (p. ej. cerrar el polígono siguiendo calles completas).
+   repetición mínima para ese grafo); es un efecto del recorte.
+
+   **DECISIÓN (usuario, 2026-07-15): opción A — recortar + podar. IMPLEMENTADA**
+   en `core/src/clip.ts` y aplicada por el backend en `computeRoute`:
+   1. `clipGraphToPolygon`: solo se conservan las aristas con sus **dos extremos
+      dentro** del polígono dibujado (las ways que Overpass trae enteras dejan
+      de colear hacia fuera del dibujo).
+   2. `pruneBorderStubs`: se podan las cadenas de grado 1 **creadas por el
+      recorte** (el extremo tenía más grado en el grafo original) de longitud
+      ≤ 40 m (`DEFAULT_MAX_STUB_METERS`). Los callejones sin salida reales se
+      conservan siempre.
+   Lo eliminado se comunica en el campo `clip` de la respuesta (§5) y la app lo
+   muestra en el panel de stats. Semántica asumida: los medios-bloques pegados
+   al borde pueden quedar sin cubrir.
+
+   Alternativas que se descartaron (quedan aquí por si se revisita):
+   - Solo avisar del % de repetición y sugerir redibujar (no mejora nada solo).
    - **Ruta abierta** (inicio ≠ fin, ya prevista como fase posterior): elimina
-     hasta un par de impares "gratis".
+     hasta un par de impares "gratis"; ganancia marginal para este problema.
 
 ---
 

@@ -16,7 +16,9 @@ export { minWeightPerfectMatching } from "./blossom.js";
 export type { PerfectMatchingOptions } from "./blossom.js";
 export { solveCPP } from "./cpp.js";
 export type { CppRoute, CppStats, CppDropped, CppOptions } from "./cpp.js";
-export { distanceMeters, polylineLengthMeters, EARTH_RADIUS_M } from "./geo.js";
+export { distanceMeters, polylineLengthMeters, pointInRing, EARTH_RADIUS_M } from "./geo.js";
+export { clipGraphToPolygon, pruneBorderStubs, DEFAULT_MAX_STUB_METERS } from "./clip.js";
+export type { ClipResult, PruneOptions, PruneResult } from "./clip.js";
 export { buildGraphFromOverpass, defaultFootBikeFilter } from "./osm.js";
 export type {
   OverpassResponse,

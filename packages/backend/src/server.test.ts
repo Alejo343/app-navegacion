@@ -2,15 +2,17 @@ import { describe, it, expect } from "vitest";
 import type { FetchLike, GeoJsonPolygon, OverpassResponse } from "@app-navegacion/core";
 import { buildServer } from "./server.js";
 
+// Cuadrado 1-2-3-4 estrictamente dentro del polígono, callejón real 1-6 dentro
+// (repetición > 0) y cola 1-5 hacia fuera (la descarta el clip del §10.7).
 const polygon: GeoJsonPolygon = {
   type: "Polygon",
   coordinates: [
     [
-      [-3.7, 40.4],
-      [-3.69, 40.4],
-      [-3.69, 40.41],
-      [-3.7, 40.41],
-      [-3.7, 40.4],
+      [-3.701, 40.3995],
+      [-3.689, 40.3995],
+      [-3.689, 40.4115],
+      [-3.701, 40.4115],
+      [-3.701, 40.3995],
     ],
   ],
 };
@@ -21,12 +23,14 @@ const osm: OverpassResponse = {
     { type: "node", id: 2, lat: 40.4, lon: -3.69 },
     { type: "node", id: 3, lat: 40.41, lon: -3.69 },
     { type: "node", id: 4, lat: 40.41, lon: -3.7 },
-    { type: "node", id: 5, lat: 40.395, lon: -3.7 },
+    { type: "node", id: 5, lat: 40.395, lon: -3.7 }, // fuera del polígono
+    { type: "node", id: 6, lat: 40.405, lon: -3.695 }, // callejón real, dentro
     { type: "way", id: 100, nodes: [1, 2], tags: { highway: "residential" } },
     { type: "way", id: 101, nodes: [2, 3], tags: { highway: "residential" } },
     { type: "way", id: 102, nodes: [3, 4], tags: { highway: "residential" } },
     { type: "way", id: 103, nodes: [4, 1], tags: { highway: "residential" } },
     { type: "way", id: 104, nodes: [1, 5], tags: { highway: "footway" } },
+    { type: "way", id: 105, nodes: [1, 6], tags: { highway: "footway" } },
   ],
 };
 
@@ -58,6 +62,8 @@ describe("POST /routes/compute", () => {
     expect(body.edges).toHaveLength(5);
     expect(body.stats.streetCount).toBe(5);
     expect(body.stats.repeatMeters).toBeGreaterThan(0);
+    // La cola 1→5 salía del polígono: el clip la descarta y lo comunica.
+    expect(body.clip).toEqual({ outsideEdges: 1, prunedEdges: 0, prunedMeters: 0 });
   });
 
   it("sirve de caché el mismo polígono (misma ruta, un solo fetch)", async () => {

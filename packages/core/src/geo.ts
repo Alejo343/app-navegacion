@@ -31,3 +31,25 @@ export function polylineLengthMeters(points: readonly [number, number][]): numbe
   }
   return total;
 }
+
+/**
+ * ¿Está el punto dentro del anillo? Ray casting (regla even-odd) en coordenadas
+ * planas lon/lat: suficiente para polígonos dibujados a mano de tamaño barrio.
+ * Punto y anillo en orden GeoJSON [lon, lat]; el anillo puede venir cerrado
+ * (primer punto === último) o abierto, da igual. Comportamiento sobre el borde
+ * exacto: NO especificado — los llamadores no deben depender de él.
+ */
+export function pointInRing(
+  point: readonly [number, number],
+  ring: readonly (readonly [number, number])[],
+): boolean {
+  const [x, y] = point;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]!;
+    const [xj, yj] = ring[j]!;
+    const crosses = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}

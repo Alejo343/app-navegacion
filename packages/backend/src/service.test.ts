@@ -10,18 +10,22 @@ import {
 import { assemblePath, computeRoute } from "./service.js";
 
 /**
- * Solución conocida (la misma del pipeline de core): cuadrado A(1)-B(2)-C(3)-D(4)
- * + callejón sin salida A-E(5). El CPP solo debe repetir el callejón.
+ * Solución conocida: cuadrado 1-2-3-4 estrictamente DENTRO del polígono, más
+ * los tres casos de la mitigación §10.7 (decisión A):
+ *   - way 104: cola 1→5 con el nodo 5 FUERA → la descarta el clip.
+ *   - way 105: callejón real 1→6, entero dentro → se conserva y el CPP lo repite.
+ *   - ways 106+107: muñón 2→7 (dentro, ~22 m) que seguía hacia 8 (fuera):
+ *     el clip corta 7→8 y la poda elimina 2→7 (≤ 40 m).
  */
 const polygon: GeoJsonPolygon = {
   type: "Polygon",
   coordinates: [
     [
-      [-3.7, 40.4],
-      [-3.69, 40.4],
-      [-3.69, 40.41],
-      [-3.7, 40.41],
-      [-3.7, 40.4],
+      [-3.701, 40.3995],
+      [-3.689, 40.3995],
+      [-3.689, 40.4115],
+      [-3.701, 40.4115],
+      [-3.701, 40.3995],
     ],
   ],
 };
@@ -32,12 +36,18 @@ const osm: OverpassResponse = {
     { type: "node", id: 2, lat: 40.4, lon: -3.69 },
     { type: "node", id: 3, lat: 40.41, lon: -3.69 },
     { type: "node", id: 4, lat: 40.41, lon: -3.7 },
-    { type: "node", id: 5, lat: 40.395, lon: -3.7 },
+    { type: "node", id: 5, lat: 40.395, lon: -3.7 }, // fuera (sur)
+    { type: "node", id: 6, lat: 40.405, lon: -3.695 }, // callejón real, dentro
+    { type: "node", id: 7, lat: 40.4002, lon: -3.69 }, // muñón, dentro
+    { type: "node", id: 8, lat: 40.412, lon: -3.69 }, // fuera (norte)
     { type: "way", id: 100, nodes: [1, 2], tags: { highway: "residential" } },
     { type: "way", id: 101, nodes: [2, 3], tags: { highway: "residential" } },
     { type: "way", id: 102, nodes: [3, 4], tags: { highway: "residential" } },
     { type: "way", id: 103, nodes: [4, 1], tags: { highway: "residential" } },
     { type: "way", id: 104, nodes: [1, 5], tags: { highway: "footway" } },
+    { type: "way", id: 105, nodes: [1, 6], tags: { highway: "footway" } },
+    { type: "way", id: 106, nodes: [2, 7], tags: { highway: "footway" } },
+    { type: "way", id: 107, nodes: [7, 8], tags: { highway: "footway" } },
   ],
 };
 
@@ -71,14 +81,19 @@ describe("computeRoute", () => {
     const sum = route.edges.reduce((acc, e) => acc + e.length, 0);
     expect(sum).toBeCloseTo(route.stats.totalStreetMeters, 6);
 
-    // Solo se repite el callejón A-E.
-    const dangling = distanceMeters(40.4, -3.7, 40.395, -3.7);
+    // Solo se repite el callejón real 1-6 (los muñones ya no existen).
+    const dangling = distanceMeters(40.4, -3.7, 40.405, -3.695);
     expect(route.stats.repeatMeters).toBeCloseTo(dangling, 6);
     expect(route.stats.streetCount).toBe(5);
 
-    // Grafo conexo: nada descartado.
+    // Grafo conexo tras el recorte: nada descartado por componentes.
     expect(route.dropped.componentCount).toBe(1);
     expect(route.dropped.edges).toHaveLength(0);
+
+    // Mitigación §10.7: 2 aristas fuera (1→5 y 7→8) y 1 muñón podado (2→7).
+    expect(route.clip.outsideEdges).toBe(2);
+    expect(route.clip.prunedEdges).toBe(1);
+    expect(route.clip.prunedMeters).toBeCloseTo(distanceMeters(40.4, -3.69, 40.4002, -3.69), 6);
   });
 });
 

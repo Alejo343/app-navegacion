@@ -160,6 +160,13 @@ export default function App() {
                 ⚠ {route.dropped.edges.length} tramos aislados quedaron fuera (zona cortada por el borde).
               </Text>
             )}
+            {route.clip !== undefined && route.clip.outsideEdges + route.clip.prunedEdges > 0 && (
+              <Text style={styles.hint}>
+                Recortado al polígono: {route.clip.outsideEdges} tramos fuera
+                {route.clip.prunedEdges > 0 &&
+                  ` · ${route.clip.prunedEdges} muñones podados (${formatMeters(route.clip.prunedMeters)})`}
+              </Text>
+            )}
             <View style={styles.row}>
               <Button label="Nueva zona" onPress={onReset} primary />
             </View>

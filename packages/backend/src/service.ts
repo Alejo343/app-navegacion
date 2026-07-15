@@ -16,6 +16,9 @@
  *       · `stats`     — las estadísticas de `solveCPP` (metros totales, repetidos, %).
  *       · `dropped`   — aviso de lo descartado por quedarnos con la componente
  *                       conexa mayor (regla dura del proyecto: comunicarlo).
+ *       · `clip`      — mitigación §10.7 (decisión A): cuántas aristas quedaron
+ *                       fuera del polígono y cuántos muñones del borde se
+ *                       podaron (y sus metros). También se comunica siempre.
  *   - Invariantes:
  *       · `path` recorre las aristas en el orden de `solveCPP`, con la geometría
  *         de cada arista orientada según el sentido real de paso.
@@ -28,7 +31,9 @@
 import {
   buildGraphFromOverpass,
   buildOverpassQuery,
+  clipGraphToPolygon,
   fetchOverpass,
+  pruneBorderStubs,
   solveCPP,
   type CppDropped,
   type CppRoute,
@@ -53,6 +58,16 @@ export interface RouteEdge {
   readonly length: number;
 }
 
+/** Resumen del recorte al polígono + poda de muñones (§10.7, decisión A). */
+export interface ClipInfo {
+  /** Aristas descartadas por tener algún extremo fuera del polígono. */
+  readonly outsideEdges: number;
+  /** Muñones del borde podados (aristas). */
+  readonly prunedEdges: number;
+  /** Metros de calle podados. */
+  readonly prunedMeters: number;
+}
+
 export interface ComputedRoute {
   /** LineString ordenado a seguir, [lon,lat][] (cerrado: primero === último). */
   readonly path: [number, number][];
@@ -60,6 +75,7 @@ export interface ComputedRoute {
   readonly edges: RouteEdge[];
   readonly stats: CppStats;
   readonly dropped: CppDropped;
+  readonly clip: ClipInfo;
 }
 
 export async function computeRoute(
@@ -72,12 +88,21 @@ export async function computeRoute(
     ...(deps.endpoint !== undefined ? { endpoint: deps.endpoint } : {}),
   });
   const { graph, edgeGeometry } = buildGraphFromOverpass(data);
-  const route = solveCPP(graph);
+  // Mitigación §10.7: recortar al polígono y podar los muñones del recorte.
+  const clipped = clipGraphToPolygon(graph, polygon);
+  const pruned = pruneBorderStubs(clipped.graph, graph);
+  const route = solveCPP(pruned.graph);
   return {
-    path: assemblePath(route, graph, edgeGeometry),
-    edges: uniqueEdges(route, graph),
+    // edgeGeometry es un superconjunto: assemblePath solo consulta las aristas de la ruta.
+    path: assemblePath(route, pruned.graph, edgeGeometry),
+    edges: uniqueEdges(route, pruned.graph),
     stats: route.stats,
     dropped: route.dropped,
+    clip: {
+      outsideEdges: clipped.outsideEdges.length,
+      prunedEdges: pruned.prunedEdges.length,
+      prunedMeters: pruned.prunedMeters,
+    },
   };
 }
 

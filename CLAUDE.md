@@ -10,14 +10,15 @@ dibujar polígono → Calcular → ruta pintada en rojo con stats.
 
 ```
 npm install                  # instalar workspaces
-npm test                     # 95 tests deben pasar (68 core + 9 backend + 18 mobile)
+npm test                     # 103 tests deben pasar (76 core + 9 backend + 18 mobile)
 npm run dev --workspace @app-navegacion/backend   # servidor en :3000 (tsx watch)
 ```
 
-**Próximo paso**: decidir la mitigación del riesgo §10.7 (muñones del borde)
-— decisión del usuario, ver [docs/plan-tecnico.md §10.7](docs/plan-tecnico.md) —
-y/o empezar la Fase 2 (GPS/navegación, `expo-location`). Ver *Estado actual*
-y *Entorno Android* más abajo y [docs/plan-tecnico.md §9](docs/plan-tecnico.md).
+La mitigación del riesgo §10.7 (muñones del borde) está **decidida (opción A)
+e implementada**: recorte del grafo al polígono + poda de muñones cortos
+(`core/src/clip.ts`, campo `clip` en la respuesta). **Próximo paso**: Fase 2
+(GPS/navegación, `expo-location`). Ver *Estado actual* y *Entorno Android*
+más abajo y [docs/plan-tecnico.md §9](docs/plan-tecnico.md).
 
 ## Qué es este proyecto
 
@@ -111,9 +112,17 @@ de forma aislada. No metas `fetch` ni acceso a disco en `core`.
   (hasta donde termina la way de OSM, fuera del polígono) porque la query
   `way["highway"](poly:...)` + `(._;>;)` trae las ways completas que tocan
   el polígono — es la cara visible del riesgo §10.7, no un bug.
-- **Próximo paso**: decidir qué mitigación del riesgo §10.7 (muñones del
-  borde) se aplica — decisión del usuario, presentar trade-offs — y luego
-  Fase 2 (GPS/navegación, `expo-location`).
+- **Riesgo §10.7 — mitigación DECIDIDA E IMPLEMENTADA (opción A, 2026-07-15).**
+  `core/src/clip.ts`: `clipGraphToPolygon` (solo aristas con ambos extremos
+  dentro del polígono) + `pruneBorderStubs` (poda cadenas de grado 1 creadas
+  por el recorte, ≤ 40 m; los callejones reales se conservan). El backend las
+  aplica antes de `solveCPP` y devuelve el resumen en `clip`
+  (`outsideEdges`/`prunedEdges`/`prunedMeters`); la app lo muestra en el panel
+  de stats. Semántica asumida: los medios-bloques del borde pueden quedar sin
+  cubrir (siempre se comunica). Detalle y alternativas descartadas en
+  [docs/plan-tecnico.md §10.7](docs/plan-tecnico.md).
+- **Próximo paso**: Fase 2 (GPS/navegación, `expo-location`): seguimiento de
+  posición, snapping a la ruta, marcar calles recorridas, % de cobertura.
 
 Módulos de `packages/core/src` (cada uno con su `.test.ts`):
 - `graph.ts` — multigrafo no dirigido (paralelas, bucles, grados).
@@ -123,7 +132,8 @@ Módulos de `packages/core/src` (cada uno con su `.test.ts`):
 - `matching.ts` — emparejamiento voraz + fuerza bruta (oráculo de tests).
 - `blossom.ts` — `minWeightPerfectMatching` óptimo (envuelve `edmonds-blossom`).
 - `cpp.ts` — `solveCPP`: ensambla todo y devuelve ruta + stats (§5).
-- `geo.ts` — haversine. `osm.ts` — grafo desde JSON Overpass (puro).
+- `clip.ts` — mitigación §10.7: recorte al polígono + poda de muñones del borde.
+- `geo.ts` — haversine + `pointInRing`. `osm.ts` — grafo desde JSON Overpass (puro).
 - `overpass.ts` — query pura + `fetchOverpass` con `fetch` inyectado (sin IO propio).
 - `pipeline.test.ts` — integración extremo a extremo con `fetch` simulado.
 
@@ -154,8 +164,10 @@ Fases posteriores (1 app+backend, 2 GPS, 3 recálculo, 4 cuentas, 5 avanzado) en
 3. **Escala**: barrios grandes → muchos impares → Blossom lento. Límite de área + aviso.
 4. **Límites de Overpass**: rate limit y timeouts → caché por hash del polígono.
 5. **Muñones del borde** → repetición alta (51,6% medido en zona densa real). No es
-   bug; mitigaciones candidatas en [docs/plan-tecnico.md §10.7](docs/plan-tecnico.md)
-   — **decisión del usuario** antes de implementar ninguna.
+   bug; **mitigado** con la opción A (recorte + poda, `core/src/clip.ts`), decidida
+   por el usuario el 2026-07-15. Detalles y alternativas descartadas en
+   [docs/plan-tecnico.md §10.7](docs/plan-tecnico.md). No cambiar la semántica
+   del recorte sin consultarlo.
 
 ## Comandos
 

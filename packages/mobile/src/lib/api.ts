@@ -46,6 +46,13 @@ export interface DroppedDto {
   readonly componentCount: number;
 }
 
+/** Recorte al polígono + poda de muñones del borde (§10.7, decisión A). */
+export interface ClipDto {
+  readonly outsideEdges: number;
+  readonly prunedEdges: number;
+  readonly prunedMeters: number;
+}
+
 export interface ComputedRouteDto {
   readonly routeId: string;
   /** LineString ordenado a seguir, [lon,lat][] (cerrado: primero === último). */
@@ -53,6 +60,8 @@ export interface ComputedRouteDto {
   readonly edges: RouteEdgeDto[];
   readonly stats: RouteStatsDto;
   readonly dropped: DroppedDto;
+  /** Opcional: backends anteriores a la mitigación §10.7 no lo mandan. */
+  readonly clip?: ClipDto;
 }
 
 export type ApiErrorCode = "no_streets" | "overpass_failed" | "invalid_polygon" | "unknown";
